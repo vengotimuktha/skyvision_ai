@@ -1,0 +1,10 @@
+.venv/
+venv/
+__pycache__/
+*.pyc
+data/input/
+data/skyvision_faiss_index/
+*.zip
+*.pack
+*.log
+*.env

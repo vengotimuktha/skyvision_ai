@@ -1,0 +1,11 @@
+PyMuPDF==1.23.7
+pdfplumber
+Pillow
+streamlit
+langchain
+langchain-community
+langchain-openai
+openai
+faiss-cpu
+PyMuPDF
+python-dotenv
