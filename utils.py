@@ -29,12 +29,10 @@ def create_faiss_index(text: str, index_path: str) -> None:
     text_splitter = RecursiveCharacterTextSplitter(chunk_size=500, chunk_overlap=100)
     chunks = text_splitter.split_text(text)
 
-    # ✅ Correct usage: load from secrets, not config
-    openai_key = st.secrets.get("OPENAI_API_KEY")
-    if not openai_key:
+    api_key = st.secrets.get("OPENAI_API_KEY")
+    if not api_key:
         raise ValueError("OPENAI_API_KEY not found in Streamlit secrets.")
-    os.environ["OPENAI_API_KEY"] = st.secrets["OPENAI_API_KEY"]  # ✅ CORRECT
-
+    os.environ["OPENAI_API_KEY"] = api_key
 
     embedding_model = OpenAIEmbeddings()
     vectorstore = FAISS.from_texts(chunks, embedding_model)
@@ -42,11 +40,10 @@ def create_faiss_index(text: str, index_path: str) -> None:
 
 
 def answer_query(index_path: str, query: str) -> (str, List[str]):
-    openai_key = st.secrets.get("OPENAI_API_KEY")
-    if not openai_key:
+    api_key = st.secrets.get("OPENAI_API_KEY")
+    if not api_key:
         raise ValueError("OPENAI_API_KEY not found in Streamlit secrets.")
-    os.environ["OPENAI_API_KEY"] = st.secrets["OPENAI_API_KEY"]  # ✅ CORRECT
-
+    os.environ["OPENAI_API_KEY"] = api_key
 
     embedding_model = OpenAIEmbeddings()
     vectorstore = FAISS.load_local(index_path, embedding_model, allow_dangerous_deserialization=True)
