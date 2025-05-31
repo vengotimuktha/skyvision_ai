@@ -33,7 +33,8 @@ def create_faiss_index(text: str, index_path: str) -> None:
     openai_key = st.secrets.get("OPENAI_API_KEY")
     if not openai_key:
         raise ValueError("OPENAI_API_KEY not found in Streamlit secrets.")
-    os.environ["OPENAI_API_KEY"] = openai_key
+    os.environ["OPENAI_API_KEY"] = st.secrets["OPENAI_API_KEY"]  # ✅ CORRECT
+
 
     embedding_model = OpenAIEmbeddings()
     vectorstore = FAISS.from_texts(chunks, embedding_model)
@@ -44,7 +45,8 @@ def answer_query(index_path: str, query: str) -> (str, List[str]):
     openai_key = st.secrets.get("OPENAI_API_KEY")
     if not openai_key:
         raise ValueError("OPENAI_API_KEY not found in Streamlit secrets.")
-    os.environ["OPENAI_API_KEY"] = openai_key
+    os.environ["OPENAI_API_KEY"] = st.secrets["OPENAI_API_KEY"]  # ✅ CORRECT
+
 
     embedding_model = OpenAIEmbeddings()
     vectorstore = FAISS.load_local(index_path, embedding_model, allow_dangerous_deserialization=True)
