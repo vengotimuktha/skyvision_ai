@@ -29,6 +29,7 @@ def create_faiss_index(text: str, index_path: str) -> None:
     text_splitter = RecursiveCharacterTextSplitter(chunk_size=500, chunk_overlap=100)
     chunks = text_splitter.split_text(text)
 
+    # ✅ Correct usage: load from secrets, not config
     openai_key = st.secrets.get("OPENAI_API_KEY")
     if not openai_key:
         raise ValueError("OPENAI_API_KEY not found in Streamlit secrets.")
