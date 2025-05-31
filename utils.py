@@ -1,5 +1,5 @@
 import os
-import fitz  # PyMuPDF
+from PyPDF2 import PdfReader
 import pandas as pd
 from typing import List
 
@@ -12,12 +12,12 @@ from config import OPENAI_API_KEY  # loads from .env or constant
 
 
 def extract_text_from_pdf(pdf_path: str) -> str:
-    """Extract full text from a PDF file."""
-    doc = fitz.open(pdf_path)
+    reader = PdfReader(pdf_path)
     text = ""
-    for page in doc:
-        text += page.get_text()
-    doc.close()
+    for page in reader.pages:
+        page_text = page.extract_text()
+        if page_text:
+            text += page_text
     return text
 
 
