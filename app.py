@@ -1,99 +1,64 @@
+import os
+from typing import List
+import streamlit as st
+import pandas as pd
+from PyPDF2 import PdfReader
+from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain_community.vectorstores.faiss import FAISS
 from langchain_openai import OpenAIEmbeddings, ChatOpenAI
-import streamlit as st
-import os
-import uuid
+from langchain.chains import RetrievalQA
 
-from utils import extract_text_from_pdf, extract_text_from_csv, create_faiss_index, answer_query
 
-# ──────────────── APP CONFIG ────────────────
-st.set_page_config(page_title="SkyVision AI - Document Q&A", layout="wide")
-st.title(" SkyVision AI — Ask Questions About Any PDF or CSV")
+def extract_text_from_pdf(pdf_path: str) -> str:
+    """Extract all text from a PDF file."""
+    reader = PdfReader(pdf_path)
+    text = ""
+    for page in reader.pages:
+        page_text = page.extract_text()
+        if page_text:
+            text += page_text
+    return text
 
-UPLOAD_DIR = "data/input"
-INDEX_DIR = "data/skyvision_faiss_index"
-os.makedirs(UPLOAD_DIR, exist_ok=True)
-os.makedirs(INDEX_DIR, exist_ok=True)
 
-# ─────────────── SESSION STATE ───────────────
-if "indexed_docs" not in st.session_state:
-    st.session_state["indexed_docs"] = {}
-if "prev_pdf" not in st.session_state:
-    st.session_state["prev_pdf"] = ""
-if "query" not in st.session_state:
-    st.session_state["query"] = ""
-if "clear_query" not in st.session_state:
-    st.session_state["clear_query"] = False
+def extract_text_from_csv(csv_path: str) -> str:
+    """Extract text from a CSV by joining rows."""
+    df = pd.read_csv(csv_path)
+    rows_as_text = df.astype(str).apply(lambda row: " | ".join(row.values), axis=1).tolist()
+    return "\n".join(rows_as_text)
 
-# ─────────────── UPLOAD SECTION ───────────────
-st.markdown("### 📤 Upload your PDF or CSV")
-uploaded_files = st.file_uploader("Drag and drop files here", type=["pdf", "csv"], accept_multiple_files=True)
-st.caption("You can upload multiple files. After uploading, click 'Extract & Index' to start Q&A.")
 
-# ─────────────── INDEXING ───────────────
-if uploaded_files:
-    for uploaded_file in uploaded_files:
-        doc_id = str(uuid.uuid4())
-        file_name = uploaded_file.name
-        file_path = os.path.join(UPLOAD_DIR, f"{doc_id}_{file_name}")
+def create_faiss_index(text: str, index_path: str) -> None:
+    """Create and save FAISS index from input text chunks."""
+    text_splitter = RecursiveCharacterTextSplitter(chunk_size=500, chunk_overlap=100)
+    chunks = text_splitter.split_text(text)
 
-        with open(file_path, "wb") as f:
-            f.write(uploaded_file.read())
-        st.success(f" Uploaded: {file_name}")
+    # Securely set OpenAI API key for langchain
+    openai_key = st.secrets.get("OPENAI_API_KEY")
+    if not openai_key:
+        raise ValueError("OPENAI_API_KEY not found in Streamlit secrets. Please add it via Manage App → Secrets.")
 
-        if st.button(f" Extract & Index: {file_name}", key=file_name):
+    os.environ["OPENAI_API_KEY"] = openai_key
 
-            with st.spinner("Creating FAISS index..."):
-                # Use correct extractor
-                if file_name.lower().endswith(".csv"):
-                    text = extract_text_from_csv(file_path)
-                else:
-                    text = extract_text_from_pdf(file_path)
+    embedding_model = OpenAIEmbeddings()
+    vectorstore = FAISS.from_texts(chunks, embedding_model)
+    vectorstore.save_local(index_path)
 
-                index_path = os.path.join(INDEX_DIR, f"{doc_id}_{file_name.replace('.pdf','').replace('.csv','')}")
-                create_faiss_index(text, index_path)
-                st.session_state["indexed_docs"][file_name] = index_path
 
-            st.success(f" Indexed: {file_name}")
+def answer_query(index_path: str, query: str) -> (str, List[str]):
+    """Answer a question based on indexed document."""
+    openai_key = st.secrets.get("OPENAI_API_KEY")
+    if not openai_key:
+        raise ValueError("OPENAI_API_KEY not found in Streamlit secrets.")
 
-# ─────────────── Q&A SECTION ───────────────
-if st.session_state["indexed_docs"]:
-    st.markdown("---")
-    st.markdown("###  Ask Questions About Your Documents")
+    os.environ["OPENAI_API_KEY"] = openai_key
 
-    selected_file = st.selectbox(" Select a document", list(st.session_state["indexed_docs"].keys()))
+    embedding_model = OpenAIEmbeddings()
+    vectorstore = FAISS.load_local(index_path, embedding_model)
+    retriever = vectorstore.as_retriever(search_kwargs={"k": 4})
 
-    if selected_file != st.session_state["prev_pdf"]:
-        st.session_state["prev_pdf"] = selected_file
-        st.session_state["query"] = ""
+    llm = ChatOpenAI(temperature=0.3, model_name="gpt-3.5-turbo")
+    qa_chain = RetrievalQA.from_chain_type(llm=llm, retriever=retriever)
 
-    if st.session_state["clear_query"]:
-        st.session_state["query"] = ""
-        st.session_state["clear_query"] = False
-        st.rerun()
-
-    query = st.text_input(" Your question:", key="query")
-
-    col1, col2 = st.columns([1, 5])
-    with col1:
-        if st.button(" Clear "):
-            st.session_state["clear_query"] = True
-    with col2:
-        if st.button(" Get Answer") and query:
-            index_path = st.session_state["indexed_docs"][selected_file]
-            with st.spinner("Generating answer..."):
-                answer, sources = answer_query(index_path, query)
-
-                st.markdown("####  Answer:")
-                st.markdown(f"""
-                    <div style="background-color:#f9f9f9; padding:14px; border-radius:8px; border: 1px solid #ddd;">
-                        {answer}
-                    </div>
-                """, unsafe_allow_html=True)
-
-                if sources:
-                    st.markdown("####  Retrieved Source Chunks:")
-                    for i, chunk in enumerate(sources):
-                        with st.expander(f"Chunk {i+1}"):
-                            st.markdown(chunk)
-
+    result = qa_chain.invoke({"query": query})
+    answer = result.get("result", "No answer found.")
+    return answer, [doc.page_content for doc in retriever.get_relevant_documents(query)]
