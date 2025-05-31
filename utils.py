@@ -34,16 +34,11 @@ def create_faiss_index(text: str, index_path: str) -> None:
     if not OPENAI_API_KEY:
         raise ValueError("OPENAI_API_KEY is not set. Please check your .env file or config.py.")
 
-    # Ensure it's visible to langchain_openai internally
-    #os.environ["OPENAI_API_KEY"] = OPENAI_API_KEY
-    
     embeddings = OpenAIEmbeddings(openai_api_key=OPENAI_API_KEY)
-
 
     text_splitter = RecursiveCharacterTextSplitter(chunk_size=500, chunk_overlap=50)
     chunks = text_splitter.split_text(text)
 
-    #embeddings = OpenAIEmbeddings()
     vectorstore = FAISS.from_texts(chunks, embedding_model=embeddings)
     vectorstore.save_local(index_path)
     print(f" FAISS index saved to: {index_path}")
@@ -54,8 +49,6 @@ def answer_query(index_path: str, query: str) -> tuple[str, List[str]]:
     if not OPENAI_API_KEY:
         raise ValueError("OPENAI_API_KEY is not set.")
 
-    #os.environ["OPENAI_API_KEY"] = OPENAI_API_KEY
-    #embeddings = OpenAIEmbeddings()
     embeddings = OpenAIEmbeddings(openai_api_key=OPENAI_API_KEY)
     vectorstore = FAISS.load_local(index_path, embeddings, allow_dangerous_deserialization=True)
 
