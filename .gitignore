@@ -2,8 +2,8 @@
 venv/
 __pycache__/
 *.pyc
-data/input/
-data/skyvision_faiss_index/
+data/input/*
+data/skyvision_faiss_index/*
 *.zip
 *.pack
 *.log
