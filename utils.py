@@ -54,8 +54,9 @@ def answer_query(index_path: str, query: str) -> tuple[str, List[str]]:
     if not OPENAI_API_KEY:
         raise ValueError("OPENAI_API_KEY is not set.")
 
-    os.environ["OPENAI_API_KEY"] = OPENAI_API_KEY
-    embeddings = OpenAIEmbeddings()
+    #os.environ["OPENAI_API_KEY"] = OPENAI_API_KEY
+    #embeddings = OpenAIEmbeddings()
+    embeddings = OpenAIEmbeddings(openai_api_key=OPENAI_API_KEY)
     vectorstore = FAISS.load_local(index_path, embeddings, allow_dangerous_deserialization=True)
 
     llm = ChatOpenAI(temperature=0, model_name="gpt-3.5-turbo")
